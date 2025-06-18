@@ -3,6 +3,7 @@ from bs4 import BeautifulSoup
 import time
 import csv # Importe a biblioteca csv
 from datetime import datetime # Importe datetime para pegar a data e hora atual
+import schedule
 
 # --- Configurações Iniciais ---
 # !!! IMPORTANTE: SUBSTITUA ESTA URL PELA URL DO SEU PRODUTO REAL DA AMAZON !!!
@@ -152,3 +153,49 @@ if __name__ == "__main__":
         print("\nNão foi possível obter o conteúdo da página para extração.")
 
     print("Monitor de Preços Finalizado por enquanto.")
+
+    # --- NOVO CÓDIGO ABAIXO: Função principal para agendamento e loop ---
+
+def check_price():
+    """
+    Função que encapsula toda a lógica de verificar e salvar o preço.
+    Será agendada para rodar repetidamente.
+    """
+    print(f"\n--- Verificando preço em {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ---")
+    html_content = get_product_page(URL_PRODUTO)
+
+    if html_content:
+        nome, preco = extract_product_info(html_content)
+
+        if nome and preco is not None:
+            print(f"Produto: {nome}")
+            print(f"Preço Atual: R$ {preco:.2f}")
+
+            current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            data_to_save = {
+                'Data/Hora': current_time,
+                'Nome do Produto': nome,
+                'Preco': f"{preco:.2f}"
+            }
+            save_to_csv(data_to_save)
+        else:
+            print("Não foi possível extrair todas as informações do produto nesta rodada.")
+    else:
+        print("Não foi possível obter o conteúdo da página nesta rodada.")
+    print("------------------------------------------------------------------")
+
+# --- Execução Principal (Modificada para agendamento) ---
+if __name__ == "__main__":
+    print("Iniciando Monitor de Preços (agendado)...")
+
+    # Executa a função imediatamente ao iniciar
+    check_price() 
+
+    # Agende a tarefa para rodar a cada 5 minutos (para teste)
+    # Você pode mudar para .every().hour, .every().day.at("HH:MM"), etc.
+    schedule.every(1).minutes.do(check_price) 
+    # Para testar mais rápido, pode usar .every(10).seconds.do(check_price)
+
+    while True:
+        schedule.run_pending() # Executa quaisquer tarefas agendadas que estejam prontas
+        time.sleep(1) # Pausa por 1 segundo para não consumir CPU desnecessariamente
